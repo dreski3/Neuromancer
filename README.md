@@ -4,13 +4,15 @@ Neuromancer is an EAE Madrid master's thesis (TFM) project for **active LAN prot
 
 The pilot will measure whether a suspicious media device can be contained while guest Wi-Fi and normal lock operation continue. Detection time, false alerts, and service continuity are the main measures. Compromised streaming devices are a documented use case. Dormant on-device AI is an emerging threat scenario for later testing.
 
-The current prototype is an offline policy checker. It reads synthetic connection summaries and emits JSON events. Live traffic collection, firewall enforcement, and turnover reporting are planned pilot work.
+The current prototype checks connection summaries and emits JSON events. It accepts synthetic records and can collect a snapshot of selected TCP connections on the Raspberry Pi. Observation of traffic between other LAN devices, firewall enforcement, and turnover reporting are planned pilot work.
 
 ## Repository layout
 
 | Path | Purpose |
 | --- | --- |
 | [`prototype/check_flows.py`](prototype/check_flows.py) | Python CLI and policy evaluation logic. |
+| [`prototype/read_socket_flows.py`](prototype/read_socket_flows.py) | Linux collector for selected established IPv4 TCP sockets on the local machine. |
+| [`prototype/tests/test_socket_flows.py`](prototype/tests/test_socket_flows.py) | Linux smoke test using real loopback connections. |
 | [`prototype/policy.json`](prototype/policy.json) | Allowed destinations by device and the large-transfer threshold. |
 | [`prototype/sample-flows.jsonl`](prototype/sample-flows.jsonl) | Three synthetic connection records used for the smoke test. |
 | [`apartment-kit-simulation.html`](apartment-kit-simulation.html) | Standalone browser demo of the proposed workflow. |
@@ -35,6 +37,26 @@ The command should print **two JSON lines**, in fixture order:
 To exercise the same policy with your own synthetic data, pass a different JSON Lines file as the second argument. Each line is a connection summary with `timestamp`, `source`, `destination`, and `bytes`. Device and destination labels must match the policy for the intended test.
 
 To try the visual simulation, open `apartment-kit-simulation.html` in a browser and step through the incident to the quarantine prompt. The simulation illustrates the workflow independently of the Python checker.
+
+## Test live detection on the Pi
+
+From the repository root on the Pi, run the Linux smoke test. It uses the installed `ss` command from iproute2 and creates two temporary loopback connections. The test checks the byte counts and verifies that only the simulated lock produces an alert.
+
+```sh
+python3 -m unittest discover -s prototype/tests -v
+```
+
+For a manual test, run a benign client against test services you control on the Pi and keep the connections open while you take a snapshot. Replace the example addresses and ports below with the Pi's local IPv4 address, the test client's IPv4 address, and your two test service ports.
+
+```sh
+python3 prototype/read_socket_flows.py \
+  --local-address 192.0.2.10 --peer-address 192.0.2.20 \
+  --source media-device \
+  --service 8080=approved-media-service --service 8081=test-lock |
+  python3 prototype/check_flows.py prototype/policy.json -
+```
+
+The collector reads kernel socket metadata, including bytes received by the Pi. It takes a single snapshot, so it can miss connections that have already closed. Its coverage is limited to TCP connections terminating on the Pi at the specified ports. Observing traffic between other LAN devices will require a router log feed or a capture point with access to that traffic.
 
 ## Thesis materials
 

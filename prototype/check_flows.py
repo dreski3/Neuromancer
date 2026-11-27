@@ -1,8 +1,10 @@
-"""Evaluate synthetic connection summaries for a managed media device."""
+"""Evaluate connection summaries for managed devices."""
 
 import argparse
+from contextlib import nullcontext
 import json
 from pathlib import Path
+import sys
 
 
 def evaluate(flow, policy):
@@ -32,12 +34,13 @@ def evaluate(flow, policy):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("policy", type=Path)
-    parser.add_argument("flows", type=Path, help="Connection summaries in JSON Lines format")
+    parser.add_argument("flows", help="JSON Lines connection summaries, or - for standard input")
     args = parser.parse_args()
 
     try:
         policy = json.loads(args.policy.read_text(encoding="utf-8"))
-        with args.flows.open(encoding="utf-8") as flows:
+        input_stream = nullcontext(sys.stdin) if args.flows == "-" else Path(args.flows).open(encoding="utf-8")
+        with input_stream as flows:
             for number, line in enumerate(flows, 1):
                 if not line.strip():
                     continue
