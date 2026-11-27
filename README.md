@@ -4,7 +4,7 @@ Neuromancer is an EAE Madrid master's thesis (TFM) project for **active LAN prot
 
 The pilot will measure whether a suspicious media device can be contained while guest Wi-Fi and normal lock operation continue. Detection time, false alerts, and service continuity are the main measures. Compromised streaming devices are a documented use case. Dormant on-device AI is an emerging threat scenario for later testing.
 
-The current prototype checks connection summaries and emits JSON events. It accepts synthetic records and can collect a snapshot of selected TCP connections on the Raspberry Pi. Observation of traffic between other LAN devices, firewall enforcement, and turnover reporting are planned pilot work.
+The current prototype checks connection summaries and emits JSON events. It accepts synthetic records and can collect a snapshot of selected TCP connections on the Raspberry Pi. It can also flag routed connection attempts in an isolated Raspberry Pi lab. Physical LAN deployment, firewall enforcement, and turnover reporting are planned pilot work.
 
 ## Repository layout
 
@@ -12,6 +12,8 @@ The current prototype checks connection summaries and emits JSON events. It acce
 | --- | --- |
 | [`prototype/check_flows.py`](prototype/check_flows.py) | Python CLI and policy evaluation logic. |
 | [`prototype/read_socket_flows.py`](prototype/read_socket_flows.py) | Linux collector for selected established IPv4 TCP sockets on the local machine. |
+| [`prototype/read_transit_flows.py`](prototype/read_transit_flows.py) | Observes initial IPv4 TCP connections at a Linux router interface. |
+| [`prototype/tests/test_transit_flows.py`](prototype/tests/test_transit_flows.py) | End-to-end test with a sender, router and service host in separate Linux network namespaces. |
 | [`prototype/tests/test_socket_flows.py`](prototype/tests/test_socket_flows.py) | Linux smoke test using real loopback connections. |
 | [`prototype/policy.json`](prototype/policy.json) | Allowed destinations by device and the large-transfer threshold. |
 | [`prototype/sample-flows.jsonl`](prototype/sample-flows.jsonl) | Three synthetic connection records used for the smoke test. |
@@ -57,6 +59,16 @@ python3 prototype/read_socket_flows.py \
 ```
 
 The collector reads kernel socket metadata, including bytes received by the Pi. It takes a single snapshot, so it can miss connections that have already closed. Its coverage is limited to TCP connections terminating on the Pi at the specified ports. Observing traffic between other LAN devices will require a router log feed or a capture point with access to that traffic.
+
+## Test traffic forwarded through the Pi
+
+On the Pi, run the routed lab with Python 3 and iproute2. The test uses root to create three temporary network namespaces connected by virtual Ethernet. It enables forwarding inside the router namespace. The physical LAN interfaces and host routing remain outside the lab.
+
+```sh
+sudo python3 -B -m unittest discover -s prototype/tests -p test_transit_flows.py -v
+```
+
+The media endpoint connects to two listening test services across the router. Both return a reply. The collector sees both TCP connection attempts on the ingress interface, and the policy checker emits one alert for the simulated lock. This is a passive test. It checks IPv4 TCP SYN metadata on one interface. Transfer size is reported as unknown and records contain no packet payload. The test removes its virtual network after it finishes.
 
 ## Thesis materials
 

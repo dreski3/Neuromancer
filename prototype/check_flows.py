@@ -16,7 +16,7 @@ def evaluate(flow, policy):
     destination = flow["destination"]
     if destination not in allowed:
         severity, reason = "alert", "destination_not_allowed"
-    elif flow["bytes"] >= policy["large_transfer_bytes"]:
+    elif flow["bytes"] is not None and flow["bytes"] >= policy["large_transfer_bytes"]:
         severity, reason = "info", "large_allowed_transfer"
     else:
         return None
