@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample apartment — IoT security kit simulation</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #e4dfd6;
+    --ink: #1c1b19;
+    --muted: #5e5a53;
+    --line: #d0cbc2;
+    --panel: #f7f5f1;
+    --paper: #fffcf8;
+    --ok: #1f6b56;
+    --watch: #8a5a12;
+    --alert: #9d342c;
+    --guest: #6e5428;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    min-height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    color: var(--ink);
+    background: var(--bg);
+    font: 15px/1.45 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    overflow: hidden;
+  }
+  header, footer { padding: 12px 20px; }
+  header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: baseline;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  h1 { font-size: 22px; font-weight: 500; margin: 0; letter-spacing: -0.02em; }
+  .eyebrow { margin: 0 0 2px; color: var(--muted); font-size: 12px; }
+  .meta { margin: 0; color: var(--muted); font-size: 13px; text-align: right; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; overflow: hidden; }
+  #stage { position: relative; min-height: 0; overflow: hidden; background: #d9d3c8; }
+  canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  aside {
+    overflow: auto;
+    min-height: 0;
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    padding: 16px 16px 24px;
+  }
+  h2 { font-size: 18px; font-weight: 500; margin: 8px 0; letter-spacing: -0.02em; }
+  p { margin: 0 0 12px; }
+  .kicker { margin: 0; color: var(--muted); font-size: 12px; }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .pill {
+    border: 1px solid currentColor;
+    padding: 1px 7px;
+    font-size: 12px;
+  }
+  .ok { color: var(--ok); }
+  .watch { color: var(--watch); }
+  .alert { color: var(--alert); }
+  .guest { color: var(--guest); }
+  .muted { color: var(--muted); }
+  .steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin: 8px 0 12px; }
+  .steps button { padding: 6px 0; }
+  .steps button[aria-current="step"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .layers { display: grid; gap: 6px; margin: 0 0 12px; }
+  .layer {
+    display: grid;
+    grid-template-columns: 8px 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .dot { width: 8px; height: 8px; margin-top: 5px; background: currentColor; }
+  .layer b { font-weight: 500; }
+  .layer span { font-size: 13px; }
+  .note {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    padding: 8px 10px;
+    margin: 0 0 12px;
+    font-size: 13px;
+  }
+  .group {
+    margin: 12px 0 4px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .dev {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+    padding: 6px 8px;
+    margin: 0 0 4px;
+    background: transparent;
+  }
+  .dev[aria-pressed="true"] { background: #efeae2; }
+  .dev .st { font-size: 13px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 12px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--ok); vertical-align: middle; margin-right: 4px; }
+  .legend .guest-ln { border-top-style: dashed; border-top-color: #8a6232; }
+  .legend .side-ln { border-top-style: dotted; border-top-color: #3d5c8a; }
+  .legend .block-ln { border-top-color: var(--alert); }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  button, .controls button {
+    font: inherit;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 6px 10px;
+  }
+  button, summary, select, input { accent-color: var(--ok); }
+  button, summary { cursor: pointer; }
+  select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .settings { margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+  .settings summary { font-weight: 500; }
+  .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; font-size: 13px; }
+  .setting-row select { max-width: 170px; font: inherit; padding: 4px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); }
+  .setting-row input { width: 17px; height: 17px; flex-shrink: 0; }
+  .settings .hint { margin: 8px 0 0; }
+  @media (prefers-reduced-motion: reduce) { .toast, .toast.out { animation: none; opacity: 1; transform: none; } .fleet-unit { transition: none; } }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  button:disabled { opacity: 0.45; }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button.primary:disabled { background: transparent; color: #8a847c; }
+  .hint, footer { color: var(--muted); font-size: 12px; }
+  footer { border-top: 1px solid var(--line); }
+  #fault:empty { display: none; }
+  #fault { color: var(--alert); }
+  /* ── sparkline ── */
+  .sparkline { margin: 8px 0 12px; }
+  .sparkline svg { width: 100%; height: 48px; display: block; }
+  .spark-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── fleet panel ── */
+  .fleet { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 12px; }
+  .fleet-unit {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    position: relative;
+    transition: transform 0.15s;
+  }
+  .fleet-unit.current { border: 2px solid var(--ink); transform: scale(1.12); }
+  .fleet-unit .fleet-dot {
+    position: absolute; top: 3px; right: 3px;
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .fleet-dot.g { background: var(--ok); }
+  .fleet-dot.a { background: var(--watch); }
+  .fleet-dot.r { background: var(--alert); }
+
+  /* ── toast notifications ── */
+  #toasts {
+    position: absolute; top: 12px; right: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+    pointer-events: none; z-index: 10;
+  }
+  .toast {
+    background: var(--paper); border: 1px solid var(--line);
+    padding: 8px 12px; font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    opacity: 0; transform: translateX(20px);
+    animation: toastIn 0.35s ease forwards;
+    max-width: 260px;
+  }
+  .toast.out { animation: toastOut 0.3s ease forwards; }
+  .toast b { font-weight: 600; }
+  .toast.t-alert { border-left: 3px solid var(--alert); }
+  .toast.t-watch { border-left: 3px solid var(--watch); }
+  .toast.t-ok { border-left: 3px solid var(--ok); }
+  @keyframes toastIn { to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateX(20px); } }
+
+  /* ── device detail card ── */
+  .dev-card {
+    border: 1px solid var(--line); background: var(--paper);
+    padding: 10px 12px; margin: 8px 0 12px;
+  }
+  .dev-card h3 { font-size: 15px; font-weight: 500; margin: 0 0 4px; }
+  .dev-card .dc-row { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; }
+  .dev-card .dc-row .dc-label { color: var(--muted); }
+  .dev-card .dc-desc { font-size: 13px; margin: 6px 0 0; color: var(--muted); }
+
+  /* ── turnover certificate ── */
+  .cert {
+    border: 2px solid var(--ok); background: #f0f7f4;
+    padding: 12px 14px; margin: 8px 0;
+    text-align: center;
+  }
+  .cert .cert-icon { font-size: 28px; margin-bottom: 4px; }
+  .cert h3 { font-size: 14px; font-weight: 600; margin: 0 0 4px; color: var(--ok); }
+  .cert p { font-size: 12px; margin: 0; color: var(--muted); }
+
+  /* ── timeline bar ── */
+  .timeline-wrap {
+    position: absolute; bottom: 10px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 0;
+    background: rgba(247,245,241,0.92);
+    border: 1px solid rgba(208,203,194,0.7);
+    padding: 5px 10px; z-index: 5;
+    pointer-events: none;
+  }
+  .tl-seg {
+    width: 38px; height: 6px;
+    background: var(--line); position: relative;
+  }
+  .tl-seg.done { background: var(--ok); }
+  .tl-seg.active { background: var(--ink); }
+  .tl-seg.warn { background: var(--watch); }
+  .tl-seg.danger { background: var(--alert); }
+  .tl-node {
+    width: 12px; height: 12px;
+    border: 2px solid var(--line);
+    background: var(--paper);
+    border-radius: 50%; flex-shrink: 0;
+  }
+  .tl-node.done { border-color: var(--ok); background: var(--ok); }
+  .tl-node.active { border-color: var(--ink); background: var(--ink); }
+  .tl-node.warn { border-color: var(--watch); background: var(--watch); }
+  .tl-node.danger { border-color: var(--alert); background: var(--alert); }
+
+  @media (max-width: 860px) {
+    body { overflow: auto; height: auto; }
+    header { flex-direction: column; align-items: flex-start; }
+    .meta { text-align: left; }
+    main { overflow: visible; grid-template-columns: 1fr; grid-template-rows: minmax(420px, 58vh) auto; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    .timeline-wrap { bottom: 6px; padding: 4px 6px; }
+    .tl-seg { width: 24px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <p class="eyebrow">IoT security kit against sleeper agents</p>
+    <h1>Sample apartment</h1>
+  </div>
+  <p class="meta">One-bedroom short-term rental<br>9.2 m × 7.2 m · illustrative</p>
+</header>
+<main>
+  <div id="stage">
+    <canvas id="view" tabindex="0" aria-label="Three-dimensional sample apartment monitored by the edge security kit"></canvas>
+    <div id="toasts"></div>
+    <div id="timeline" class="timeline-wrap"></div>
+  </div>
+  <aside aria-label="Simulation controls">
+    <details class="settings" id="settings">
+      <summary>Settings</summary>
+      <label class="setting-row" for="playback-speed">Playback speed
+        <select id="playback-speed" data-setting="speed">
+          <option value="0.5">0.5× · slower</option><option value="1">1× · normal</option><option value="2">2× · faster</option>
+        </select>
+      </label>
+      <label class="setting-row" for="device-labels">Show device labels<input type="checkbox" id="device-labels" data-setting="labels"></label>
+      <label class="setting-row" for="connection-paths">Show connection paths<input type="checkbox" id="connection-paths" data-setting="connections"></label>
+      <label class="setting-row" for="motion-preference">Motion
+        <select id="motion-preference" data-setting="motion"><option value="system">Use device preference</option><option value="reduced">Reduced</option><option value="full">Full</option></select>
+      </label>
+      <p class="hint">Normal playback takes 4.6 seconds per step and pauses for quarantine authorization. Reduced motion stops moving packets, pulses, and camera transitions.</p>
+      <div class="controls"><button type="button" id="reset-settings">Reset settings</button></div>
+      <p class="hint" id="settings-status" role="status"></p>
+    </details>
+    <div id="side" aria-live="polite"></div>
+  </aside>
+</main>
+<footer>
+  <span id="fault"></span>
+  Illustrative simulation drawn from the hospitality kit overview. Placement, timing, and signal strength are staged, not measured. The gateway watches metadata, Bluetooth advertising, and the power puck. It does not read guest traffic contents.
+</footer>
+<script>
+(function () {
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const SETTINGS_KEY = "apartment-kit-simulation.settings.v1";
+  const DEFAULT_SETTINGS = { speed: 1, labels: true, connections: true, motion: "system" };
+  let settings = { ...DEFAULT_SETTINGS };
+  let settingsSaved = false;
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+    if (saved && typeof saved === "object") {
+      if ([0.5, 1, 2].includes(saved.speed)) settings.speed = saved.speed;
+      for (const key of ["labels", "connections"]) if (typeof saved[key] === "boolean") settings[key] = saved[key];
+      if (["system", "reduced", "full"].includes(saved.motion)) settings.motion = saved.motion;
+    }
+    settingsSaved = true;
+  } catch (_) { /* Settings still work when browser storage is unavailable. */ }
+  function reducedMotion() {
+    return settings.motion === "reduced" || (settings.motion === "system" && motionQuery.matches);
+  }
+  function syncSettings() {
+    document.querySelectorAll("[data-setting]").forEach((control) => {
+      const value = settings[control.dataset.setting];
+      if (control.type === "checkbox") control.checked = value;
+      else control.value = String(value);
+    });
+    document.getElementById("settings-status").textContent = settingsSaved
+      ? "Preferences are saved in this browser."
+      : "Preferences apply for this visit; browser storage is unavailable.";
+  }
+  function saveSettings() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); settingsSaved = true; }
+    catch (_) { settingsSaved = false; }
+    syncSettings();
+  }
+  document.getElementById("settings").addEventListener("change", (event) => {
+    const control = event.target.closest("[data-setting]");
+    if (!control) return;
+    settings[control.dataset.setting] = control.type === "checkbox" ? control.checked
+      : control.dataset.setting === "speed" ? Number(control.value) : control.value;
+    saveSettings();
+  });
+  document.getElementById("reset-settings").addEventListener("click", () => {
+    settings = { ...DEFAULT_SETTINGS };
+    saveSettings();
+    document.getElementById("settings-status").textContent = settingsSaved
+      ? "Default settings restored and saved." : "Defaults restored for this visit; browser storage is unavailable.";
+  });
+  syncSettings();
+  const canvas = document.getElementById("view");
+  const aside = document.getElementById("side");
+  const ctx = canvas.getContext("2d");
+  const YF = 0.1;
+
+  const P = {
+    tv: [5.28, 1.38, 0.17],
+    streamer: [4.58, 0.54, 0.4],
+    puck: [6.02, 0.54, 0.4],
+    beacon: [6.12, 0.06, 0.98],
+    voice: [0.68, 0.66, 2.12],
+    laptop: [3.15, 0.4, 2.42],
+    phone: [3.68, 0.46, 2.22],
+    thermo: [5.45, 1.42, 4.48],
+    lock: [7.08, 1.02, 6.86],
+    gateway: [8.48, 0.84, 5.55],
+    modem: [7.92, 0.8, 5.55],
+    ap: [9.02, 1.82, 5.55]
+  };
+
+  const DEVICES = [
+    { id: "modem", name: "ISP modem", group: "Inline path", pos: P.modem, size: [0.26, 0.16, 0.2], color: [116, 112, 106] },
+    { id: "gateway", name: "Edge gateway", group: "Inline path", pos: P.gateway, size: [0.36, 0.24, 0.26], color: [22, 64, 54] },
+    { id: "ap", name: "Wi-Fi access point", group: "Inline path", pos: P.ap, size: [0.14, 0.05, 0.24], color: [90, 94, 98] },
+    { id: "tv", name: "Smart TV", group: "Management VLAN", pos: P.tv, size: [1.24, 0.72, 0.07], color: [32, 36, 42] },
+    { id: "streamer", name: "Streaming box", group: "Management VLAN", pos: P.streamer, size: [0.22, 0.08, 0.15], color: [78, 82, 86] },
+    { id: "voice", name: "Voice assistant", group: "Management VLAN", pos: P.voice, size: [0.12, 0.24, 0.12], color: [86, 90, 94] },
+    { id: "thermo", name: "Thermostat", group: "Management VLAN", pos: P.thermo, size: [0.18, 0.24, 0.07], color: [48, 86, 90] },
+    { id: "lock", name: "Smart lock", group: "Management VLAN", pos: P.lock, size: [0.1, 0.22, 0.08], color: [48, 52, 58] },
+    { id: "puck", name: "Power / thermal puck", group: "Side channels", pos: P.puck, size: [0.2, 0.1, 0.2], color: [54, 78, 122] },
+    { id: "laptop", name: "Guest laptop", group: "Guest VLAN", pos: P.laptop, size: [0.34, 0.035, 0.24], color: [138, 116, 78] },
+    { id: "phone", name: "Guest phone", group: "Guest VLAN", pos: P.phone, size: [0.07, 0.13, 0.035], color: [150, 128, 90] },
+    { id: "beacon", name: "Rogue BLE beacon", group: "Side channels", pos: P.beacon, size: [0.18, 0.1, 0.16], color: [140, 42, 36], when: (phase) => phase >= 3 }
+  ];
+
+  const PHASES = [
+    {
+      time: "Simulated T+0 min",
+      title: "Baseline watch",
+      kit: "Nominal",
+      tone: "ok",
+      body: "The gateway sits inline between the ISP modem and the Wi-Fi access point. The phone and laptop are already on an isolated guest VLAN. The lock, thermostat, television, streamer, and voice assistant are on the management VLAN. The puck beside the television is at its idle baseline.",
+      layers: [
+        ["Network metadata", "Clear", "ok"],
+        ["Bluetooth / RF", "Clear", "ok"],
+        ["Power / thermal puck", "Idle baseline", "ok"],
+        ["Correlation", "No pattern", "ok"]
+      ]
+    },
+    {
+      time: "Simulated T+2 min",
+      title: "Bulk download",
+      kit: "Watching",
+      tone: "watch",
+      body: "Metadata shows a large transfer aimed at the smart TV, the kind of multi-gigabyte blob the overview treats as a weight download. The gateway records volume, direction, and ports. It does not open the payload. One signal is not enough to cut the device off.",
+      layers: [
+        ["Network metadata", "Large flow toward the TV", "watch"],
+        ["Bluetooth / RF", "Clear", "ok"],
+        ["Power / thermal puck", "Idle baseline", "ok"],
+        ["Correlation", "Holding", "watch"]
+      ]
+    },
+    {
+      time: "Simulated T+6 min",
+      title: "Sustained compute",
+      kit: "Watching",
+      tone: "watch",
+      body: "The puck reports power and heat above the idle baseline, consistent with continuous on-device compute. The download signal is still open. Both are retained. The kit still does not quarantine, so a single noisy stay is not interrupted.",
+      layers: [
+        ["Network metadata", "Large flow still open", "watch"],
+        ["Bluetooth / RF", "Clear", "ok"],
+        ["Power / thermal puck", "Sustained draw", "watch"],
+        ["Correlation", "Two signals", "watch"]
+      ]
+    },
+    {
+      time: "Simulated T+7 min",
+      title: "Rogue beacon",
+      kit: "Correlating",
+      tone: "watch",
+      body: "A Bluetooth advertiser that is not on the room inventory appears beside the television. The gateway hears it on the local radio. This is the out-of-band trigger in the threat model. All three layers are now active, still without reading guest traffic.",
+      layers: [
+        ["Network metadata", "Large flow still open", "watch"],
+        ["Bluetooth / RF", "Unknown advertiser", "watch"],
+        ["Power / thermal puck", "Sustained draw", "watch"],
+        ["Correlation", "Three signals", "watch"]
+      ]
+    },
+    {
+      time: "Simulated T+7 min · fusion",
+      title: "Pattern flagged",
+      kit: "Alert",
+      tone: "alert",
+      body: "The on-device engine fuses the three signals into one sleeper-agent pattern and flags the television. A lateral probe appears on the management VLAN toward the lock and the thermostat. The streamer and the voice assistant do not share the pattern, so they stay in service. Quarantine waits for a person.",
+      layers: [
+        ["Network metadata", "Matched", "alert"],
+        ["Bluetooth / RF", "Matched", "alert"],
+        ["Power / thermal puck", "Matched", "alert"],
+        ["Correlation", "Sleeper pattern on the TV", "alert"]
+      ],
+      note: "Guest isolation is already in effect. Device quarantine is the step that waits for authorization."
+    },
+    {
+      time: "Simulated T+7 min · authorized",
+      title: "Device constrained",
+      kit: "Contained",
+      tone: "alert",
+      body: "Quarantine is on. The television’s management path is cut, and both lateral probes are blocked. The lock, thermostat, streamer, and voice assistant remain on the management VLAN. The phone and laptop remain on the guest VLAN. The beacon stays visible for the turnover audit.",
+      layers: [
+        ["Network metadata", "TV segment blocked", "alert"],
+        ["Bluetooth / RF", "Beacon still observed", "watch"],
+        ["Power / thermal puck", "Elevated, retained", "watch"],
+        ["Correlation", "Quarantine holding", "alert"]
+      ],
+      note: "Fleet dashboard receives status only: Red. Smart TV quarantined. No guest payload attached."
+    }
+  ];
+
+  const MGMT = "#1f6b56";
+  const GUEST = "#8a6232";
+  const SIDE = "#3d5c8a";
+  const ALERT = "#9d342c";
+  const AMBER = "#8a5a12";
+  const WAN = "#5c5854";
+
+  let phase = 0;
+  let playing = false;
+  let selected = "gateway";
+  let hover = null;
+  let acc = 0;
+  let anim = 0;
+  let last = performance.now();
+  let uiStamp = "";
+  let cam = { yaw: 0.62, pitch: 1.08, dist: 18.2, target: [4.55, 0.15, 3.65] };
+  let camAnim = null;
+  let drag = null;
+  let lastCam = null;
+
+  const PRESETS = {
+    three: { yaw: 0.62, pitch: 1.08, dist: 18.2, target: [4.55, 0.15, 3.65] },
+    plan: { yaw: 0.15, pitch: 1.42, dist: 18.8, target: [4.6, 0, 3.15] },
+    entry: { yaw: 2.15, pitch: 0.98, dist: 17.2, target: [5.0, 0.3, 3.9] }
+  };
+
+  function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function cross(a, b) {
+    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  }
+  function norm(a) {
+    const L = Math.hypot(a[0], a[1], a[2]) || 1;
+    return [a[0] / L, a[1] / L, a[2] / L];
+  }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function lerp3(a, b, t) { return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]; }
+  function dist3(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+  function mix(a, b, t) { return a.map((v, i) => Math.round(v * (1 - t) + b[i] * t)); }
+
+  function eyeFrom(c) {
+    const cp = Math.cos(c.pitch);
+    const sp = Math.sin(c.pitch);
+    return [
+      c.target[0] + c.dist * cp * Math.sin(c.yaw),
+      c.target[1] + c.dist * sp,
+      c.target[2] + c.dist * cp * Math.cos(c.yaw)
+    ];
+  }
+
+  function basis(pos, target) {
+    const forward = norm(sub(target, pos));
+    if (Math.abs(forward[1]) > 0.92) return { forward, right: [1, 0, 0], up: [0, 0, -1] };
+    const right = norm(cross(forward, [0, 1, 0]));
+    const up = norm(cross(right, forward));
+    return { forward, right, up };
+  }
+
+  function makeCam() {
+    const pos = eyeFrom(cam);
+    const b = basis(pos, cam.target);
+    const h = canvas.clientHeight || 1;
+    const fov = 42 * Math.PI / 180;
+    return {
+      pos,
+      forward: b.forward,
+      right: b.right,
+      up: b.up,
+      focal: (h / 2) / Math.tan(fov / 2),
+      w: canvas.clientWidth,
+      h
+    };
+  }
+
+  function project(v, camNow) {
+    const rel = sub(v, camNow.pos);
+    const z = dot(rel, camNow.forward);
+    if (z < 0.25) return null;
+    const x = dot(rel, camNow.right);
+    const y = dot(rel, camNow.up);
+    return { x: camNow.w / 2 + (x / z) * camNow.focal, y: camNow.h / 2 - (y / z) * camNow.focal, z };
+  }
+
+  function camZ(v, camNow) { return dot(sub(v, camNow.pos), camNow.forward); }
+
+  function addBox(faces, center, size, color, opt) {
+    const hx = size[0] / 2, hy = size[1] / 2, hz = size[2] / 2;
+    const c = center;
+    const p = [
+      [c[0] - hx, c[1] - hy, c[2] - hz], [c[0] + hx, c[1] - hy, c[2] - hz],
+      [c[0] + hx, c[1] - hy, c[2] + hz], [c[0] - hx, c[1] - hy, c[2] + hz],
+      [c[0] - hx, c[1] + hy, c[2] - hz], [c[0] + hx, c[1] + hy, c[2] - hz],
+      [c[0] + hx, c[1] + hy, c[2] + hz], [c[0] - hx, c[1] + hy, c[2] + hz]
+    ];
+    const quads = [
+      [4, 5, 6, 7, [0, 1, 0]],
+      [0, 3, 2, 1, [0, -1, 0]],
+      [1, 2, 6, 5, [1, 0, 0]],
+      [0, 4, 7, 3, [-1, 0, 0]],
+      [3, 7, 6, 2, [0, 0, 1]],
+      [0, 1, 5, 4, [0, 0, -1]]
+    ];
+    quads.forEach((q) => {
+      faces.push({
+        verts: [p[q[0]], p[q[1]], p[q[2]], p[q[3]]],
+        normal: q[4],
+        color,
+        alpha: opt && opt.alpha ? opt.alpha : 1,
+        emissive: !!(opt && opt.emissive),
+        blink: opt && opt.blink
+      });
+    });
+  }
+
+  function addBoxMin(faces, x, y, z, w, h, d, color, opt) {
+    addBox(faces, [x + w / 2, y + h / 2, z + d / 2], [w, h, d], color, opt);
+  }
+
+  function addQuad(faces, verts, color) {
+    faces.push({ verts, normal: [0, 1, 0], color, alpha: 1 });
+  }
+
+  function buildFaces(phaseNow, animNow, dollhouse) {
+    const shell = [];
+    const props = [];
+    const wall = [246, 243, 237];
+    const H = dollhouse ? 1.52 : 2.45;
+    const T = 0.1;
+    addBoxMin(shell, -1.2, -0.16, -1.2, 11.6, 0.08, 9.6, [206, 200, 190]);
+    addBoxMin(shell, -0.18, -0.08, -0.18, 9.56, 0.08, 7.56, [188, 180, 168]);
+    addQuad(shell, [[0.12, 0.02, 0.12], [6.2, 0.02, 0.12], [6.2, 0.02, 4.55], [0.12, 0.02, 4.55]], [236, 231, 222]);
+    addQuad(shell, [[6.3, 0.02, 0.12], [9.08, 0.02, 0.12], [9.08, 0.02, 4.55], [6.3, 0.02, 4.55]], [228, 222, 212]);
+    addQuad(shell, [[0.12, 0.02, 4.68], [6.18, 0.02, 4.68], [6.18, 0.02, 7.08], [0.12, 0.02, 7.08]], [224, 223, 218]);
+    addQuad(shell, [[6.32, 0.02, 4.68], [9.08, 0.02, 4.68], [9.08, 0.02, 7.08], [6.32, 0.02, 7.08]], [218, 216, 210]);
+    addQuad(shell, [[2.15, 0.03, 2.05], [4.35, 0.03, 2.05], [4.35, 0.03, 3.15], [2.15, 0.03, 3.15]], [214, 206, 194]);
+
+    addBoxMin(shell, 0, 0, 0, 1.05, H, T, wall);
+    addBoxMin(shell, 4.15, 0, 0, 5.05, H, T, wall);
+    addBoxMin(shell, 1.05, 0, 0, 3.1, Math.min(0.82, H), T, wall);
+    const glassH = Math.max(0, Math.min(1.33, H - 0.82));
+    if (glassH > 0.05) {
+      addBoxMin(shell, 1.12, 0.82, 0.02, 2.96, glassH, 0.04, [168, 198, 200], { alpha: 0.72, emissive: true, blink: 1 });
+    }
+    if (H > 2.08) {
+      addBoxMin(shell, 1.05, 2.15, 0, 3.1, 0.3, T, wall);
+    }
+    addBoxMin(shell, 0, 0, 7.1, 6.9, H, T, wall);
+    addBoxMin(shell, 8.15, 0, 7.1, 1.05, H, T, wall);
+    addBoxMin(props, 6.95, 0, 6.96, 1.15, 2.08, 0.08, [96, 78, 62]);
+    addBoxMin(shell, 0, 0, 0, T, H, 7.2, wall);
+    addBoxMin(shell, 9.1, 0, 0, T, H, 7.2, wall);
+    addBoxMin(shell, 0, 0, 4.55, 2.2, H, T, wall);
+    addBoxMin(shell, 3.15, 0, 4.55, 3.05, H, T, wall);
+    if (H > 2.05) {
+      addBoxMin(shell, 2.2, 2.05, 4.55, 0.95, 0.4, T, wall);
+    }
+    addBoxMin(shell, 6.2, 0, 4.65, T, H, 2.45, wall);
+
+    addBox(props, [3.15, 0.24, 3.62], [2.2, 0.42, 0.82], [62, 74, 70]);
+    addBox(props, [3.15, 0.5, 3.92], [2.2, 0.36, 0.16], [48, 60, 56]);
+    addBox(props, [3.22, 0.18, 2.42], [1.25, 0.36, 0.72], [176, 140, 96]);
+    addBox(props, [5.3, 0.23, 0.4], [1.9, 0.46, 0.42], [146, 112, 78]);
+    addBox(props, [0.66, 0.26, 2.12], [0.46, 0.5, 0.46], [156, 124, 92]);
+    addBox(props, [2.15, 0.18, 6.05], [1.6, 0.32, 1.75], [236, 234, 230]);
+    addBox(props, [2.15, 0.38, 6.2], [1.42, 0.08, 1.05], [186, 198, 200]);
+    addBox(props, [2.15, 0.4, 5.5], [1.2, 0.08, 0.32], [248, 246, 242]);
+    addBox(props, [8.72, 0.46, 1.55], [0.7, 0.92, 2.15], [226, 224, 218]);
+    addBox(props, [8.15, 0.34, 5.52], [1.7, 0.68, 0.5], [132, 108, 84]);
+
+    const tvTint = phaseNow >= 4 ? mix([32, 36, 42], [140, 48, 42], 0.72) : [32, 36, 42];
+    const screen = phaseNow >= 5 ? [92, 40, 36]
+      : phaseNow >= 4 ? [156, 46, 40]
+      : phaseNow >= 2 ? [154, 112, 52]
+      : phaseNow >= 1 ? [46, 96, 92]
+      : [18, 46, 50];
+    const led = phaseNow >= 4 ? [196, 64, 52] : phaseNow >= 1 ? [196, 144, 48] : [46, 158, 112];
+    const blink = reducedMotion() || phaseNow < 4 ? 1 : 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(animNow * 6));
+
+    DEVICES.forEach((d) => {
+      if (d.when && !d.when(phaseNow)) return;
+      const color = d.id === "tv" ? tvTint : d.color;
+      addBox(props, d.pos, d.size, color);
+    });
+    addBox(props, [P.tv[0], P.tv[1], P.tv[2] + 0.045], [1.08, 0.58, 0.02], screen);
+    addBox(props, [P.laptop[0], 0.56, 2.28], [0.36, 0.26, 0.025], [36, 40, 44]);
+    addBox(props, [P.gateway[0], P.gateway[1] + 0.04, P.gateway[2] - 0.14], [0.06, 0.06, 0.02], led, { emissive: true, blink });
+    return { shell, props };
+  }
+
+  function trunk() {
+    return [[6.42, YF, 0.72], [6.42, YF, 5.4], [8.48, YF, 5.4], P.gateway];
+  }
+
+  function paths(phaseNow) {
+    const links = [];
+    const tvColor = phaseNow >= 4 ? ALERT : phaseNow >= 1 ? AMBER : MGMT;
+    const tvFull = [P.tv, [5.28, YF, 0.72], ...trunk()];
+    if (phaseNow >= 5) {
+      links.push({ pts: trimPath(tvFull, 0.2), color: ALERT, width: 2.2, dash: [5, 4], mark: "cut", label: "quarantine" });
+    } else {
+      links.push({ pts: tvFull, color: tvColor, width: phaseNow >= 1 ? 2.4 : 1.7, flow: 28, blob: phaseNow >= 1 && phaseNow <= 4 });
+    }
+    const rest = [
+      [P.streamer, [4.58, YF, 0.72], ...trunk()],
+      [P.voice, [0.68, YF, 2.12], [0.68, YF, 0.72], ...trunk()],
+      [P.thermo, [5.45, YF, 4.48], [6.42, YF, 4.48], [6.42, YF, 5.4], [8.48, YF, 5.4], P.gateway],
+      [P.lock, [7.08, YF, 6.45], [8.48, YF, 6.45], [8.48, YF, 5.7], P.gateway]
+    ];
+    rest.forEach((pts) => links.push({ pts, color: MGMT, width: 1.6, flow: 18 }));
+    links.push({
+      pts: [P.laptop, [3.15, YF, 3.0], [6.95, YF, 3.0], [6.95, YF, 5.2], [8.48, YF, 5.2], P.gateway],
+      color: GUEST, width: 1.6, dash: [7, 6], flow: 16
+    });
+    links.push({
+      pts: [P.phone, [3.68, YF, 2.86], [7.15, YF, 2.86], [7.15, YF, 5.2], [8.48, YF, 5.2], P.gateway],
+      color: GUEST, width: 1.6, dash: [7, 6], flow: 16
+    });
+    links.push({
+      pts: [P.puck, [6.7, 1.2, 2.0], [7.7, 1.4, 3.7], P.gateway],
+      color: phaseNow >= 2 ? AMBER : SIDE, width: 1.5, dash: [1, 5], flow: 12
+    });
+    links.push({ pts: [P.modem, [8.2, 0.98, 5.55], P.gateway], color: WAN, width: 2 });
+    links.push({ pts: [P.gateway, [8.7, 1.35, 5.55], P.ap], color: WAN, width: 2 });
+    if (phaseNow >= 3) {
+      links.push({
+        pts: [P.beacon, [6.9, 1.55, 2.5], [7.9, 1.55, 4.1], P.gateway],
+        color: ALERT, width: 1.5, dash: [2, 4], flow: 22
+      });
+      links.push({ pts: [P.beacon, [5.28, 0.85, 0.32]], color: ALERT, width: 1.4, dash: [2, 3] });
+    }
+    if (phaseNow >= 4) {
+      const lateral = [
+        [[5.28, 1.22, 0.34], [5.45, 1.22, 4.48]],
+        [[5.28, 1.22, 0.34], [7.08, 1.16, 6.55]]
+      ];
+      lateral.forEach((pts, i) => {
+        if (phaseNow >= 5) {
+          links.push({ pts: trimPath(pts, 0.38), color: ALERT, width: 1.6, dash: [4, 4], mark: "x", label: i === 0 ? "blocked" : "" });
+        } else {
+          links.push({ pts, color: ALERT, width: 1.6, dash: [4, 4], flow: 36, probe: true });
+        }
+      });
+    }
+    return links;
+  }
+
+  function trimPath(points, fraction) {
+    const lens = [];
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+      const L = dist3(points[i - 1], points[i]);
+      lens.push(L);
+      total += L;
+    }
+    let remain = total * fraction;
+    const out = [points[0]];
+    for (let i = 0; i < lens.length; i++) {
+      if (remain >= lens[i]) {
+        out.push(points[i + 1]);
+        remain -= lens[i];
+      } else {
+        const t = lens[i] === 0 ? 0 : remain / lens[i];
+        out.push(lerp3(points[i], points[i + 1], t));
+        break;
+      }
+    }
+    return out;
+  }
+
+  function pointAt(points, t) {
+    const lens = [];
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+      const L = dist3(points[i - 1], points[i]);
+      lens.push(L);
+      total += L;
+    }
+    let remain = Math.min(Math.max(t, 0), 0.999) * total;
+    for (let i = 0; i < lens.length; i++) {
+      if (remain <= lens[i]) {
+        const u = lens[i] === 0 ? 0 : remain / lens[i];
+        return lerp3(points[i], points[i + 1], u);
+      }
+      remain -= lens[i];
+    }
+    return points[points.length - 1];
+  }
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    canvas.width = Math.max(1, Math.floor(w * dpr));
+    canvas.height = Math.max(1, Math.floor(h * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawFaces(faces, camNow) {
+    const LIGHT = norm([-0.32, 0.9, 0.28]);
+    const drawn = [];
+    faces.forEach((face) => {
+      const z = face.verts.reduce((s, v) => s + camZ(v, camNow), 0) / face.verts.length;
+      if (z < 0.3) return;
+      const mid = face.verts.reduce((s, v) => [s[0] + v[0], s[1] + v[1], s[2] + v[2]], [0, 0, 0]).map((v) => v / face.verts.length);
+      if (dot(face.normal, sub(camNow.pos, mid)) <= 0) return;
+      drawn.push({ face, z });
+    });
+    drawn.sort((a, b) => b.z - a.z);
+    drawn.forEach(({ face }) => {
+      const pts = [];
+      for (let i = 0; i < face.verts.length; i++) {
+        const p = project(face.verts[i], camNow);
+        if (!p) return;
+        pts.push(p);
+      }
+      const nd = face.emissive ? (face.blink || 1) : 0.72 + 0.28 * Math.max(0, dot(face.normal, LIGHT));
+      const r = Math.round(face.color[0] * nd);
+      const g = Math.round(face.color[1] * nd);
+      const b = Math.round(face.color[2] * nd);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      ctx.globalAlpha = face.alpha;
+      ctx.fillStyle = "rgb(" + r + "," + g + "," + b + ")";
+      ctx.fill();
+      ctx.globalAlpha = Math.min(1, face.alpha + 0.25);
+      ctx.strokeStyle = "rgba(40, 34, 28, 0.38)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function clipSegment(a, b, camNow) {
+    const za = camZ(a, camNow);
+    const zb = camZ(b, camNow);
+    const near = 0.25;
+    if (za < near && zb < near) return null;
+    if (za >= near && zb >= near) return [a, b];
+    const t = (near - za) / (zb - za);
+    if (za < near) return [lerp3(a, b, t), b];
+    return [a, lerp3(a, b, t)];
+  }
+
+  function strokePath(pts, style, camNow) {
+    ctx.save();
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = style.width || 1.5;
+    ctx.setLineDash(style.dash || []);
+    ctx.lineDashOffset = !reducedMotion() && style.flow ? -anim * style.flow : 0;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    let on = false;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const seg = clipSegment(pts[i], pts[i + 1], camNow);
+      if (!seg) { on = false; continue; }
+      const p0 = project(seg[0], camNow);
+      const p1 = project(seg[1], camNow);
+      if (!p0 || !p1) { on = false; continue; }
+      if (!on) ctx.moveTo(p0.x, p0.y);
+      else ctx.lineTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      on = true;
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawMark(p, kind) {
+    ctx.save();
+    ctx.fillStyle = "#f7f5f1";
+    ctx.strokeStyle = ALERT;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.x - 3.5, p.y - 3.5);
+    ctx.lineTo(p.x + 3.5, p.y + 3.5);
+    ctx.moveTo(p.x + 3.5, p.y - 3.5);
+    ctx.lineTo(p.x - 3.5, p.y + 3.5);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPackets(pts, n, speed, radius, fill, camNow) {
+    if (reducedMotion()) return;
+    for (let i = 0; i < n; i++) {
+      const t = (anim * speed + i / n) % 1;
+      const p = project(pointAt(pts, t), camNow);
+      if (!p) continue;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(28,27,25,0.35)";
+      ctx.setLineDash([]);
+      ctx.stroke();
+    }
+  }
+
+  function visibleDevices(phaseNow) {
+    return DEVICES.filter((d) => !d.when || d.when(phaseNow));
+  }
+
+  function labelFor(d, phaseNow) {
+    if (d.id === "tv" && phaseNow >= 5) return "TV quarantined";
+    if (d.id === "tv" && phaseNow >= 4) return "TV flagged";
+    if (d.id === "tv") return "Smart TV";
+    if (d.id === "puck" && phaseNow >= 2) return "Puck elevated";
+    if (d.id === "puck") return "Puck";
+    if (d.id === "beacon") return "Rogue BLE";
+    if (d.id === "gateway") return "Gateway";
+    if (d.id === "laptop") return "Guest laptop";
+    if (d.id === "phone") return "Guest phone";
+    if (d.id === "thermo") return "Thermostat";
+    if (d.id === "lock") return "Smart lock";
+    if (d.id === "ap") return "Wi-Fi";
+    if (d.id === "modem") return "Modem";
+    if (d.id === "voice") return "Voice";
+    if (d.id === "streamer") return "Streamer";
+    return d.name;
+  }
+
+  function shouldLabel(d, phaseNow) {
+    if (!settings.labels) return false;
+    if (d.id === selected || d.id === hover) return true;
+    if (d.id === "gateway" || d.id === "tv" || d.id === "lock" || d.id === "thermo" || d.id === "puck") return true;
+    if (d.id === "laptop" || d.id === "phone") return true;
+    if (d.id === "beacon" && phaseNow >= 3) return true;
+    return false;
+  }
+
+  function drawLabels(camNow, phaseNow) {
+    const offsets = {
+      tv: [0, -18],
+      puck: [54, -6],
+      gateway: [8, -16],
+      lock: [-46, -4],
+      thermo: [0, -20],
+      laptop: [-36, -14],
+      phone: [42, -10],
+      beacon: [48, 8],
+      voice: [-28, -12],
+      streamer: [-40, -8],
+      modem: [-32, -8],
+      ap: [0, -14]
+    };
+    const deviceLabels = [];
+    visibleDevices(phaseNow).forEach((d) => {
+      if (!shouldLabel(d, phaseNow)) return;
+      const anchor = [d.pos[0], d.pos[1] + d.size[1] / 2, d.pos[2]];
+      const p = project(anchor, camNow);
+      if (!p) return;
+      const off = offsets[d.id] || [0, -14];
+      deviceLabels.push({
+        x: p.x + off[0],
+        y: p.y + off[1],
+        ax: p.x,
+        ay: p.y,
+        text: labelFor(d, phaseNow),
+        alert: (d.id === "tv" && phaseNow >= 4) || d.id === "beacon"
+      });
+    });
+    ctx.save();
+    ctx.font = '12px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.setLineDash([]);
+    [["Living", [1.55, 0.05, 1.35]], ["Kitchen", [7.85, 0.05, 3.35]], ["Bedroom", [3.7, 0.05, 6.15]], ["Entry", [7.55, 0.05, 6.15]]].forEach(([text, pos]) => {
+      const p = project(pos, camNow);
+      if (!p) return;
+      const crowded = deviceLabels.some((d) => Math.hypot(d.x - p.x, d.y - p.y) < 46);
+      if (crowded) return;
+      ctx.fillStyle = "rgba(94, 90, 83, 0.85)";
+      ctx.fillText(text, p.x, p.y);
+    });
+    deviceLabels.forEach((item) => {
+      let x = item.x;
+      let y = item.y;
+      if (y < 40) y = Math.min(camNow.h - 24, item.ay + 22);
+      if (y > camNow.h - 18) y = Math.max(40, item.ay - 22);
+      x = Math.max(52, Math.min(camNow.w - 52, x));
+      ctx.strokeStyle = "rgba(28,27,25,0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(item.ax, item.ay);
+      ctx.lineTo(x, y + 8);
+      ctx.stroke();
+      const w = ctx.measureText(item.text).width;
+      ctx.fillStyle = "rgba(247, 245, 241, 0.94)";
+      ctx.strokeStyle = item.alert ? ALERT : "rgba(28,27,25,0.28)";
+      ctx.beginPath();
+      ctx.rect(x - w / 2 - 5, y - 8, w + 10, 16);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = item.alert ? ALERT : "#1c1b19";
+      ctx.fillText(item.text, x, y);
+    });
+    ctx.restore();
+  }
+
+  function drawChip(phaseNow) {
+    const spec = PHASES[phaseNow];
+    const text = spec.kit + " · " + spec.title;
+    ctx.save();
+    ctx.font = '13px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    const w = ctx.measureText(text).width;
+    ctx.fillStyle = "rgba(247,245,241,0.94)";
+    ctx.strokeStyle = spec.tone === "alert" ? ALERT : spec.tone === "watch" ? AMBER : "rgba(28,27,25,0.25)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.rect(12, 12, w + 16, 26);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = spec.tone === "alert" ? ALERT : spec.tone === "watch" ? AMBER : "#1f6b56";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, 20, 25);
+    ctx.restore();
+  }
+
+  function render() {
+    resize();
+    const camNow = makeCam();
+    lastCam = camNow;
+    ctx.clearRect(0, 0, camNow.w, camNow.h);
+    ctx.fillStyle = "#d9d3c8";
+    ctx.fillRect(0, 0, camNow.w, camNow.h);
+    const dollhouse = cam.pitch < 1.26;
+    const built = buildFaces(phase, anim, dollhouse);
+    drawFaces(built.shell, camNow);
+    drawFaces(built.props, camNow);
+    if (phase >= 4) {
+      const pulse = phase === 4 && !reducedMotion() ? 0.04 * Math.sin(anim * 3) : 0;
+      const x0 = 4.32 - pulse, x1 = 6.28 + pulse, z0 = 0.12, z1 = 1.12, y = 0.08;
+      strokePath([[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [x0, y, z0]], {
+        color: ALERT,
+        width: phase >= 5 ? 2.4 : 1.6,
+        dash: phase >= 5 ? [] : [6, 4]
+      }, camNow);
+    }
+    const links = settings.connections ? paths(phase) : [];
+    links.forEach((link) => { link.z = link.pts.reduce((s, v) => s + camZ(v, camNow), 0) / link.pts.length; });
+    links.sort((a, b) => b.z - a.z);
+    links.forEach((link) => {
+      strokePath(link.pts, link, camNow);
+      if (link.mark) {
+        const end = link.pts[link.pts.length - 1];
+        const p = project(end, camNow);
+        if (p) drawMark(p, link.label);
+      }
+      if (link.blob) drawPackets(link.pts, 1, 0.16, 6.5, "#f4efe4", camNow);
+      else if (link.probe) drawPackets(link.pts, 1, 0.45, 4, ALERT, camNow);
+      else if (!link.mark) drawPackets(link.pts, 1, 0.08, 3, link.color, camNow);
+    });
+    drawLabels(camNow, phase);
+    drawChip(phase);
+  }
+
+  function deviceState(id, phaseNow) {
+    if (id === "tv") {
+      if (phaseNow >= 5) return ["Quarantined", "alert"];
+      if (phaseNow >= 4) return ["Flagged", "alert"];
+      if (phaseNow >= 2) return ["Correlating", "watch"];
+      if (phaseNow >= 1) return ["Large flow", "watch"];
+      return ["In service", "ok"];
+    }
+    if (id === "puck") return phaseNow >= 2 ? ["Elevated", "watch"] : ["Baseline", "ok"];
+    if (id === "beacon") {
+      if (phaseNow >= 5) return ["Logged for audit", "alert"];
+      if (phaseNow >= 4) return ["In the pattern", "alert"];
+      return ["Not on inventory", "watch"];
+    }
+    if (id === "laptop" || id === "phone") return ["Isolated", "guest"];
+    if (id === "gateway") {
+      if (phaseNow >= 5) return ["Containing", "alert"];
+      if (phaseNow >= 4) return ["Alert", "alert"];
+      if (phaseNow >= 1) return ["Watching", "watch"];
+      return ["Nominal", "ok"];
+    }
+    if (id === "lock" || id === "thermo") {
+      if (phaseNow >= 5) return ["Protected", "ok"];
+      if (phaseNow >= 4) return ["Probe seen", "watch"];
+      return ["In service", "ok"];
+    }
+    if (id === "modem") return ["Uplink", "muted"];
+    if (id === "ap") return ["Behind the gateway", "muted"];
+    return ["In service", "ok"];
+  }
+
+  function syncUi() {
+    const stamp = phase + "|" + playing + "|" + selected;
+    if (stamp === uiStamp) return;
+    uiStamp = stamp;
+    const spec = PHASES[phase];
+    const steps = PHASES.map((item, i) => {
+      const current = (i === phase ? ' aria-current="step"' : "") + (i === 5 && phase < 5 ? ' disabled title="Authorize quarantine at step 5 first"' : "");
+      return '<button type="button" data-act="phase" data-phase="' + i + '"' + current + ' aria-label="' + item.title + '">' + (i + 1) + "</button>";
+    }).join("");
+    let prev = "";
+    const devices = visibleDevices(phase).map((d) => {
+      const head = d.group !== prev ? '<div class="group">' + d.group + "</div>" : "";
+      prev = d.group;
+      const st = deviceState(d.id, phase);
+      const pressed = d.id === selected ? "true" : "false";
+      return head + '<button type="button" class="dev" data-act="device" data-id="' + d.id + '" aria-pressed="' + pressed + '"><span>' + d.name + '</span><span class="st ' + st[1] + '">' + st[0] + "</span></button>";
+    }).join("");
+    const authLabel = phase >= 5 ? "Release quarantine" : "Authorize quarantine";
+    const authDisabled = phase < 4 ? " disabled" : "";
+    const authClass = phase === 4 ? "primary" : "";
+    const forwardDisabled = phase >= 4 ? " disabled" : "";
+    const backDisabled = phase <= 0 ? " disabled" : "";
+    const playLabel = playing ? "Pause" : phase >= 5 ? "Replay" : "Play";
+    const playDisabled = phase === 4 ? " disabled" : "";
+    const note = spec.note ? '<p class="note">' + spec.note + "</p>" : "";
+    const layers = spec.layers.map((layer) => {
+      return '<div class="layer ' + layer[2] + '"><i class="dot"></i><b>' + layer[0] + '</b><span class="' + layer[2] + '">' + layer[1] + "</span></div>";
+    }).join("");
+    aside.innerHTML = [
+      '<div class="row"><span class="pill ' + spec.tone + '">' + spec.kit + '</span><span class="kicker">' + spec.time + "</span></div>",
+      "<h2>" + spec.title + "</h2>",
+      '<div class="steps" role="group" aria-label="Scenario steps">' + steps + "</div>",
+      '<div class="controls">',
+      '<button type="button" data-act="back"' + backDisabled + ">Back</button>",
+      '<button type="button" data-act="play"' + playDisabled + ">" + playLabel + "</button>",
+      '<button type="button" data-act="forward"' + forwardDisabled + ">Forward</button>",
+      '<button type="button" class="' + authClass + '" data-act="auth"' + authDisabled + ">" + authLabel + "</button>",
+      "</div>",
+      '<div class="controls">',
+      '<button type="button" data-act="preset" data-preset="three">Three-quarter</button>',
+      '<button type="button" data-act="preset" data-preset="plan">Plan</button>',
+      '<button type="button" data-act="preset" data-preset="entry">Gateway</button>',
+      "</div>",
+      "<p>" + spec.body + "</p>",
+      note,
+      '<section aria-labelledby="detector-heading">',
+      '<h3 id="detector-heading">Early danger detector</h3>',
+      '<div class="layers">' + layers + "</div>",
+      phase < 4 ? '<p class="hint">Quarantine stays disabled until the three signals match.</p>' : "",
+      '</section>',
+      '<div class="legend"><span><i></i>Management VLAN</span><span><i class="guest-ln"></i>Guest VLAN</span><span><i class="side-ln"></i>Puck telemetry</span><span><i class="block-ln"></i>Flag, probe, or cut</span></div>',
+      devices,
+      '<p class="hint">Drag to orbit, scroll to zoom, click a device. Orbit views use a dollhouse wall height so every room stays readable; Plan restores full walls. Space plays. Arrow keys step. Right arrow at the flag authorizes quarantine.</p>'
+    ].join("");
+    canvas.setAttribute("aria-label", "Sample apartment, " + spec.title + ", kit " + spec.kit + ".");
+  }
+
+  function setPhase(next) {
+    phase = Math.max(0, Math.min(phase === 5 ? 5 : 4, next));
+    if (!visibleDevices(phase).some((d) => d.id === selected)) selected = "gateway";
+    if (phase >= 4) playing = false;
+    acc = 0;
+    syncUi();
+  }
+
+  function togglePlay() {
+    if (phase >= 5 && !playing) {
+      phase = 0;
+      selected = "gateway";
+      acc = 0;
+    }
+    playing = !playing;
+    if (phase >= 4) playing = false;
+    syncUi();
+  }
+
+  function authorize() {
+    if (phase < 4) return;
+    phase = phase === 5 ? 4 : 5;
+    playing = false;
+    acc = 0;
+    syncUi();
+  }
+
+  function goPreset(name) {
+    const to = PRESETS[name];
+    if (!to) return;
+    if (reducedMotion()) {
+      cam = { ...to, target: to.target.slice() };
+      camAnim = null;
+      return;
+    }
+    camAnim = {
+      from: { yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist, target: cam.target.slice() },
+      to,
+      t: 0
+    };
+  }
+
+  aside.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-act]");
+    if (!button || button.disabled) return;
+    const act = button.dataset.act;
+    if (act === "phase") setPhase(Number(button.dataset.phase));
+    if (act === "device") { selected = button.dataset.id; uiStamp = ""; syncUi(); }
+    if (act === "play") togglePlay();
+    if (act === "back") setPhase(phase - 1);
+    if (act === "forward") setPhase(phase + 1);
+    if (act === "auth") authorize();
+    if (act === "preset") goPreset(button.dataset.preset);
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.target && event.target.closest && event.target.closest("input, textarea, select, button, summary, [contenteditable]")) return;
+    if (event.key === " ") { event.preventDefault(); togglePlay(); }
+    if (event.key === "ArrowLeft") { event.preventDefault(); setPhase(phase - 1); }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      if (phase === 4) authorize();
+      else setPhase(phase + 1);
+    }
+  });
+
+  canvas.addEventListener("pointerdown", (event) => {
+    canvas.setPointerCapture(event.pointerId);
+    drag = { x: event.clientX, y: event.clientY, yaw: cam.yaw, pitch: cam.pitch, moved: false };
+    camAnim = null;
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    if (drag) {
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      if (dx * dx + dy * dy > 9) drag.moved = true;
+      cam.yaw = drag.yaw - dx * 0.005;
+      cam.pitch = Math.max(0.18, Math.min(1.42, drag.pitch + dy * 0.004));
+      return;
+    }
+    hover = pick(x, y);
+    canvas.style.cursor = hover ? "pointer" : "grab";
+  });
+  canvas.addEventListener("pointerup", (event) => {
+    if (!drag) return;
+    const moved = drag.moved;
+    drag = null;
+    if (moved) return;
+    const rect = canvas.getBoundingClientRect();
+    const id = pick(event.clientX - rect.left, event.clientY - rect.top);
+    if (id) { selected = id; uiStamp = ""; syncUi(); }
+  });
+  canvas.addEventListener("pointerleave", () => { hover = null; });
+  canvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    cam.dist = Math.max(5.5, Math.min(28, cam.dist * Math.exp(event.deltaY * 0.0011)));
+  }, { passive: false });
+  canvas.addEventListener("dblclick", () => goPreset("three"));
+
+  function pick(x, y) {
+    if (!lastCam) return null;
+    let best = null;
+    let bestD = 34;
+    visibleDevices(phase).forEach((d) => {
+      const p = project(d.pos, lastCam);
+      if (!p) return;
+      const dd = Math.hypot(p.x - x, p.y - y);
+      if (dd < bestD) { bestD = dd; best = d.id; }
+    });
+    return best;
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    anim += dt;
+    if (camAnim) {
+      camAnim.t = reducedMotion() ? 1 : Math.min(1, camAnim.t + dt / 0.55);
+      const e = 1 - Math.pow(1 - camAnim.t, 3);
+      cam.yaw = lerp(camAnim.from.yaw, camAnim.to.yaw, e);
+      cam.pitch = lerp(camAnim.from.pitch, camAnim.to.pitch, e);
+      cam.dist = lerp(camAnim.from.dist, camAnim.to.dist, e);
+      cam.target = lerp3(camAnim.from.target, camAnim.to.target, e);
+      if (camAnim.t >= 1) camAnim = null;
+    }
+    if (playing && phase < 4) {
+      acc += dt * settings.speed;
+      if (acc > 4.6) {
+        acc = 0;
+        phase += 1;
+        if (phase >= 4) playing = false;
+        syncUi();
+      }
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener("resize", resize);
+  window.addEventListener("error", (event) => {
+    const fault = document.getElementById("fault");
+    if (fault) fault.textContent = event.message + " ";
+  });
+  syncUi();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
