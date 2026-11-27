@@ -1,0 +1,6 @@
+{
+  "allowed_destinations": {
+    "media-device": ["approved-media-service"]
+  },
+  "large_transfer_bytes": 100000000
+}

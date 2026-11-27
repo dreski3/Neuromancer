@@ -1,0 +1,13 @@
+.venv*/
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*
+*.pcap
+*.pcapng
+generated_images/
+figures/fonts/
+figures/incident-signals.png
+figures/pricing-ranges.png
+figures/portfolio-subscription.png

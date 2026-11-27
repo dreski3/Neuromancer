@@ -1,0 +1,3 @@
+{"timestamp":"2026-11-27T10:00:00Z","source":"media-device","destination":"approved-media-service","bytes":12000}
+{"timestamp":"2026-11-27T10:01:00Z","source":"media-device","destination":"approved-media-service","bytes":160000000}
+{"timestamp":"2026-11-27T10:02:00Z","source":"media-device","destination":"test-lock","bytes":60}
